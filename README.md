@@ -14,6 +14,7 @@ Usage
 -----
 
 ``dodither.py INPUT [OPTIONS...]``  
+  
 ``INPUT``: Is a path to the input image, i.e. the one to be dithered  
 ``OPTIONS``:  
   * ``-c COLORSCHEME``: Sets the color scheme used to generate the output image. Possible options are:
