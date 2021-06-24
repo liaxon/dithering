@@ -108,7 +108,7 @@ if curarg != "":
 
 # handy functions
 # returns the closest point in a given color scheme
-#this is a bottleneck
+# this function is the bottleneck of the whole program
 def getclosest(color, colorscheme):
   if colorscheme["doindependent"]:
     bestcolor = np.array([0, 0, 0], dtype=np.uint8)
@@ -131,21 +131,6 @@ def getclosest(color, colorscheme):
         bestdist = dist
         bestcolor = newcolor
     return bestcolor
-
-
-# If array[index] exists, sets it to value. If not, does nothing
-# Probably a built-in numpy way of doing this, but this works fine
-def set(array, index, value):
-  for i in range(len(index)):
-    if array.shape[i] <= index[i]:
-      return
-  array[index] = value
-# If array[index] exists, adds it to value. If not, does nothing
-def addto(array, index, value):
-  for i in range(len(index)):
-    if array.shape[i] <= index[i] or index[i] < 0:
-      return
-  array[index] += value
 
 # actual dithering operations
 try:
