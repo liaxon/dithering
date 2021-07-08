@@ -19,7 +19,7 @@ Usage
 ``OPTIONS``:  
   * ``-c COLORSCHEME``: Sets the color scheme used to generate the output image. Possible options are:
     ``blackandwhite``, ``grayscale``, ``rgbwb``, ``blocky``, ``finer``, ``veryfine``. More color schemes are easy to add within the code itself.  
-  * ``-d DITHERSTYLE``: Sets the style of image processing. Options are: ``none``, ``closest``, ``floydsteinberg``. The default is ``floydsteinberg``. To do realistic-looking dithering, always use the default value. Choose ``closest`` to instead naively assign the best-fitting color to each pixel of the input image.  
+  * ``-d DITHERSTYLE``: Sets the style of image processing. Options are: ``none``, ``closest``, ``floydsteinberg``, ``notouch``. The default is ``floydsteinberg``. To do realistic-looking dithering, this is the option to choose. Choose ``closest`` to instead naively assign the best-fitting color to each pixel of the input image. Choose ``notouch`` to get a neat effect, whereby no two adjacent pixels can be the same color.
   * ``-o OUTPUT``: Specifies the output file.  
   * ``-v``: Activates verbose mode; relates information about how much progress has been made on image.  
 

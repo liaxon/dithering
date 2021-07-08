@@ -13,7 +13,7 @@ def usage_error():
   print("    default: rgbwb")
   print("  -d DITHERSTYLE")
   print("    Sets the style of image processing. Options are:")
-  print("    none, closest, floydsteinberg")
+  print("    none, closest, floydsteinberg, notouch")
   print("  -o OUTPUT")
   print("    Sets the path to the output image, default ./out.png")
   print("  -v")
@@ -24,7 +24,7 @@ def usage_error():
 
 def style_error():
   print("DITHERSTYLE must be one of:")
-  print("  none, closest, floydsteinberg")
+  print("  none, closest, floydsteinberg, notouch")
   exit(1)
 
 def colorscheme_error():
@@ -113,7 +113,7 @@ def getclosest(color, colorscheme):
   if colorscheme["doindependent"]:
     bestcolor = np.array([0, 0, 0], dtype=np.uint8)
     for i in range(3):
-      bestdist = float('inf')
+      bestdist = float("inf")
       bestshade = None
       for newshade in colorscheme["shades"]:
         dist = abs(newshade- color[i])
@@ -123,14 +123,49 @@ def getclosest(color, colorscheme):
       bestcolor[i] = bestshade
     return bestcolor
   else:
-    bestdist = float('inf')
+    bestdist = float("inf")
     bestcolor = None
     for newcolor in colorscheme["colors"]:
-      dist = np.sum(np.abs(newcolor-color))
+      dist = np.sum(np.square(newcolor-color))
       if(dist < bestdist):
         bestdist = dist
         bestcolor = newcolor
     return bestcolor
+
+# takes a colorscheme specified by shades, and returns a colorscheme specified by colors
+def makecolors(colorscheme):
+  if colorscheme["doindependent"]:
+    mycolors = []
+    for shadeR in colorscheme["shades"]:
+      for shadeG in colorscheme["shades"]:
+        for shadeB in colorscheme["shades"]:
+          mycolors.append(np.array([shadeR, shadeG, shadeB]))
+    return {
+      "doindependent": False,
+      "colors": mycolors
+    }
+  else:
+    return colorscheme
+
+# returns whether an item is in a list (because the "in" keyword was giving me difficulty)
+# works specifically for a list of numpy elements
+def isin(item, list):
+  for listitem in list:
+    if(np.array_equal(item, listitem)):
+      return True
+  return False
+
+# exactly like getclosest, but also handles excluded colors
+def getclosestwithexclusion(color, colorscheme, excludedcolors):
+  bestdist = float('inf')
+  bestcolor = None
+  for newcolor in colorscheme["colors"]:
+    if not isin(newcolor, excludedcolors):
+      dist = np.sum(np.square(newcolor-color))
+      if(dist < bestdist):
+        bestdist = dist
+        bestcolor = newcolor
+  return bestcolor
 
 # actual dithering operations
 try:
@@ -147,17 +182,17 @@ try:
     # (naively) match pixels independently
     elif ditherstyle=="closest":
       if printprogress:
-        print("starting loop")
+        print("starting image processing")
       for j in range(height):
         if printprogress:
           if j%10==0:
-            print("on row", j)
+            print("on row", j, "of", height)
         for i in range(width):
           color = bmp[i,j]
           newcolor = getclosest(color, colorscheme)
           bmp[i,j,:] = newcolor
       if printprogress:
-        print("finished loop")
+        print("finished processing image")
       Image.fromarray(bmp).save(outputpath)
 
     # Floyd-Steinberg dithering
@@ -165,15 +200,15 @@ try:
       newbmp = np.empty((width, height, 3), dtype=np.uint8)
       error = np.zeros((width, height, 3))
       if printprogress:
-        print("starting loop")
+        print("starting image processing")
       for j in range(height):
         if printprogress:
           if j%10==0:
-            print("on row", j)
+            print("on row", j, "of", height)
         for i in range(width):
           color = bmp[i,j] + error[i,j]
           newcolor = getclosest(color, colorscheme)
-          newbmp[i,j,:] = newcolor
+          newbmp[i,j] = newcolor
           extracolor = color - newcolor
           if i+1 < width:
             error[i+1, j] += extracolor*7/16
@@ -184,7 +219,41 @@ try:
           if i+1 < width and j-1 >= 0:
             error[i+1, j-1] += extracolor*1/16
       if printprogress:
-        print("finished loop")
+        print("finished processing image")
+      Image.fromarray(newbmp).save(outputpath)
+
+    # Floyd-Steinberg dithering, but no two colors can touch
+    elif ditherstyle=="notouch":
+      newbmp = np.empty((width, height, 3), dtype=np.uint8)
+      error = np.zeros((width, height, 3))
+      colorscheme = makecolors(colorscheme) # do not allow independent colors here
+      if printprogress:
+        print("starting image processing")
+      for j in range(height):
+        if printprogress:
+          if j%10==0:
+            print("on row", j, "of", height)
+        for i in range(width):
+          color = bmp[i,j] + error[i,j]
+          # notouch rule for horizontally or vertically adjacent squares
+          excludedcolors = []
+          if i >= 1:
+            excludedcolors.append(newbmp[i-1,j,:])
+          if j >= 1:
+            excludedcolors.append(newbmp[i,j-1,:])
+          newcolor = getclosestwithexclusion(color, colorscheme, excludedcolors)
+          newbmp[i,j] = newcolor
+          extracolor = color - newcolor
+          if i+1 < width:
+            error[i+1, j] += extracolor*7/16
+          if i-1 >= 0 and j-1 >= 0:
+            error[i-1, j-1] += extracolor*3/16
+          if j-1 >= 0:
+            error[i, j-1] += extracolor*5/16
+          if i+1 < width and j-1 >= 0:
+            error[i+1, j-1] += extracolor*1/16
+      if printprogress:
+        print("finished processing image")
       Image.fromarray(newbmp).save(outputpath)
 
     # something's fishy...
