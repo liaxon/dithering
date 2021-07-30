@@ -33,16 +33,11 @@ def colorscheme_error():
   print("  default: rgbwb")
   exit(1)
 
-def file_error():
+def file_error(inputpath):
   print("Error: File", inputpath, "does not exist.")
   exit(1)
 
-# default values
-if len(sys.argv) <= 1:
-  usage_error()
-inputpath = sys.argv[1]
-outputpath = "./out.png"
-ditherstyle = "floydsteinberg"
+# List of available color schemes
 defaultschemes = {
   # If doindendent == True, treat the RGB values as independent, matching each independently.
   # In this case, color scheme uses a list of numbers from 0 - 255 called "shades" that represent
@@ -74,39 +69,17 @@ defaultschemes = {
     "shades": [0, 30, 60, 90, 120, 150, 180, 210, 240, 255]
   }
 }
-colorscheme = defaultschemes["rgbwb"]
-printprogress = False
 
-#handling args
-args = sys.argv[2:]
-curarg = ""
-for arg in args :
-  if curarg=="o":
-    outputpath = arg
-    curarg = ""
-  elif curarg=="d":
-    ditherstyle = arg
-    curarg = ""
-  elif curarg=="c":
-    if arg in defaultschemes:
-      colorscheme = defaultschemes[arg]
-    else:
-      colorscheme_error()
-    curarg = ""
-  elif arg=="-o":
-    curarg = "o"
-  elif arg=="-d":
-    curarg = "d"
-  elif arg=="-c":
-    curarg="c"
-  elif arg=="-v":
-    printprogress = True
-  else:
-    usage_error()
-if curarg != "":
-  usage_error()
+# some handy functions
 
-# handy functions
+# returns whether an item is in a list (because the "in" keyword was giving me difficulty)
+# works specifically for a list of numpy elements
+def isin(item, list):
+  for listitem in list:
+    if(np.array_equal(item, listitem)):
+      return True
+  return False
+
 # returns the closest point in a given color scheme
 # this function is the bottleneck of the whole program
 def getclosest(color, colorscheme):
@@ -132,6 +105,18 @@ def getclosest(color, colorscheme):
         bestcolor = newcolor
     return bestcolor
 
+# exactly like getclosest, but also handles excluded colors
+def getclosestwithexclusion(color, colorscheme, excludedcolors):
+  bestdist = float('inf')
+  bestcolor = None
+  for newcolor in colorscheme["colors"]:
+    if not isin(newcolor, excludedcolors):
+      dist = np.sum(np.square(newcolor-color))
+      if(dist < bestdist):
+        bestdist = dist
+        bestcolor = newcolor
+  return bestcolor
+
 # takes a colorscheme specified by shades, and returns a colorscheme specified by colors
 def makecolors(colorscheme):
   if colorscheme["doindependent"]:
@@ -147,117 +132,143 @@ def makecolors(colorscheme):
   else:
     return colorscheme
 
-# returns whether an item is in a list (because the "in" keyword was giving me difficulty)
-# works specifically for a list of numpy elements
-def isin(item, list):
-  for listitem in list:
-    if(np.array_equal(item, listitem)):
-      return True
-  return False
 
-# exactly like getclosest, but also handles excluded colors
-def getclosestwithexclusion(color, colorscheme, excludedcolors):
-  bestdist = float('inf')
-  bestcolor = None
-  for newcolor in colorscheme["colors"]:
-    if not isin(newcolor, excludedcolors):
-      dist = np.sum(np.square(newcolor-color))
-      if(dist < bestdist):
-        bestdist = dist
-        bestcolor = newcolor
-  return bestcolor
+# main code -- takes in command line arguments and performs the dithering
+def main():
+  # default values
+  if len(sys.argv) <= 1:
+    usage_error()
+  inputpath = sys.argv[1]
+  outputpath = "./out.png"
+  ditherstyle = "floydsteinberg"
+  colorscheme = defaultschemes["rgbwb"]
+  printprogress = False
 
-# actual dithering operations
-try:
-  with Image.open(inputpath) as im:
-    bmp = np.array(im) # from PIL Image to Numpy Array, signature (width, height, 3) 
-    if printprogress:
-      print("shape:", bmp.shape[0], "by", bmp.shape[1])
-    (width, height, _) = bmp.shape
-
-    # just copy input image
-    if ditherstyle=="none":
-      Image.fromArray(bmp).save(outputpath)
-
-    # (naively) match pixels independently
-    elif ditherstyle=="closest":
-      if printprogress:
-        print("starting image processing")
-      for j in range(height):
-        if printprogress:
-          if j%10==0:
-            print("on row", j, "of", height)
-        for i in range(width):
-          color = bmp[i,j]
-          newcolor = getclosest(color, colorscheme)
-          bmp[i,j,:] = newcolor
-      if printprogress:
-        print("finished processing image")
-      Image.fromarray(bmp).save(outputpath)
-
-    # Floyd-Steinberg dithering
-    elif ditherstyle=="floydsteinberg":
-      newbmp = np.empty((width, height, 3), dtype=np.uint8)
-      error = np.zeros((width, height, 3))
-      if printprogress:
-        print("starting image processing")
-      for j in range(height):
-        if printprogress:
-          if j%10==0:
-            print("on row", j, "of", height)
-        for i in range(width):
-          color = bmp[i,j] + error[i,j]
-          newcolor = getclosest(color, colorscheme)
-          newbmp[i,j] = newcolor
-          extracolor = color - newcolor
-          if i+1 < width:
-            error[i+1, j] += extracolor*7/16
-          if i-1 >= 0 and j-1 >= 0:
-            error[i-1, j-1] += extracolor*3/16
-          if j-1 >= 0:
-            error[i, j-1] += extracolor*5/16
-          if i+1 < width and j-1 >= 0:
-            error[i+1, j-1] += extracolor*1/16
-      if printprogress:
-        print("finished processing image")
-      Image.fromarray(newbmp).save(outputpath)
-
-    # Floyd-Steinberg dithering, but no two colors can touch
-    elif ditherstyle=="notouch":
-      newbmp = np.empty((width, height, 3), dtype=np.uint8)
-      error = np.zeros((width, height, 3))
-      colorscheme = makecolors(colorscheme) # do not allow independent colors here
-      if printprogress:
-        print("starting image processing")
-      for j in range(height):
-        if printprogress:
-          if j%10==0:
-            print("on row", j, "of", height)
-        for i in range(width):
-          color = bmp[i,j] + error[i,j]
-          # notouch rule for horizontally or vertically adjacent squares
-          excludedcolors = []
-          if i >= 1:
-            excludedcolors.append(newbmp[i-1,j,:])
-          if j >= 1:
-            excludedcolors.append(newbmp[i,j-1,:])
-          newcolor = getclosestwithexclusion(color, colorscheme, excludedcolors)
-          newbmp[i,j] = newcolor
-          extracolor = color - newcolor
-          if i+1 < width:
-            error[i+1, j] += extracolor*7/16
-          if i-1 >= 0 and j-1 >= 0:
-            error[i-1, j-1] += extracolor*3/16
-          if j-1 >= 0:
-            error[i, j-1] += extracolor*5/16
-          if i+1 < width and j-1 >= 0:
-            error[i+1, j-1] += extracolor*1/16
-      if printprogress:
-        print("finished processing image")
-      Image.fromarray(newbmp).save(outputpath)
-
-    # something's fishy...
+  # handling args
+  args = sys.argv[2:]
+  curarg = ""
+  for arg in args :
+    if curarg=="o":
+      outputpath = arg
+      curarg = ""
+    elif curarg=="d":
+      ditherstyle = arg
+      curarg = ""
+    elif curarg=="c":
+      if arg in defaultschemes:
+        colorscheme = defaultschemes[arg]
+      else:
+        colorscheme_error()
+      curarg = ""
+    elif arg=="-o":
+      curarg = "o"
+    elif arg=="-d":
+      curarg = "d"
+    elif arg=="-c":
+      curarg="c"
+    elif arg=="-v":
+      printprogress = True
     else:
-      style_error()
-except FileNotFoundError:
-  file_error()
+      usage_error()
+  if curarg != "":
+    usage_error()
+
+  # actual dithering operations
+  try:
+    with Image.open(inputpath) as im:
+      bmp = np.array(im) # from PIL Image to Numpy Array, signature (width, height, 3) 
+      if printprogress:
+        print("shape:", bmp.shape[0], "by", bmp.shape[1])
+      (width, height, _) = bmp.shape
+
+      # just copy input image
+      if ditherstyle=="none":
+        Image.fromArray(bmp).save(outputpath)
+
+      # (naively) match pixels independently
+      elif ditherstyle=="closest":
+        if printprogress:
+          print("starting image processing")
+        for j in range(height):
+          if printprogress:
+            if j%10==0:
+              print("on row", j, "of", height)
+          for i in range(width):
+            color = bmp[i,j]
+            newcolor = getclosest(color, colorscheme)
+            bmp[i,j,:] = newcolor
+        if printprogress:
+          print("finished processing image")
+        Image.fromarray(bmp).save(outputpath)
+
+      # Floyd-Steinberg dithering
+      elif ditherstyle=="floydsteinberg":
+        newbmp = np.empty((width, height, 3), dtype=np.uint8)
+        error = np.zeros((width, height, 3))
+        if printprogress:
+          print("starting image processing")
+        for j in range(height):
+          if printprogress:
+            if j%10==0:
+              print("on row", j, "of", height)
+          for i in range(width):
+            color = bmp[i,j] + error[i,j]
+            newcolor = getclosest(color, colorscheme)
+            newbmp[i,j] = newcolor
+            extracolor = color - newcolor
+            if i+1 < width:
+              error[i+1, j] += extracolor*7/16
+            if i-1 >= 0 and j-1 >= 0:
+              error[i-1, j-1] += extracolor*3/16
+            if j-1 >= 0:
+              error[i, j-1] += extracolor*5/16
+            if i+1 < width and j-1 >= 0:
+              error[i+1, j-1] += extracolor*1/16
+        if printprogress:
+          print("finished processing image")
+        Image.fromarray(newbmp).save(outputpath)
+
+      # Floyd-Steinberg dithering, but no two colors can touch
+      elif ditherstyle=="notouch":
+        newbmp = np.empty((width, height, 3), dtype=np.uint8)
+        error = np.zeros((width, height, 3))
+        colorscheme = makecolors(colorscheme) # do not allow independent colors here
+        if printprogress:
+          print("starting image processing")
+        for j in range(height):
+          if printprogress:
+            if j%10==0:
+              print("on row", j, "of", height)
+          for i in range(width):
+            color = bmp[i,j] + error[i,j]
+            # notouch rule for horizontally or vertically adjacent squares
+            excludedcolors = []
+            if i >= 1:
+              excludedcolors.append(newbmp[i-1,j,:])
+            if j >= 1:
+              excludedcolors.append(newbmp[i,j-1,:])
+            newcolor = getclosestwithexclusion(color, colorscheme, excludedcolors)
+            newbmp[i,j] = newcolor
+            extracolor = color - newcolor
+            if i+1 < width:
+              error[i+1, j] += extracolor*7/16
+            if i-1 >= 0 and j-1 >= 0:
+              error[i-1, j-1] += extracolor*3/16
+            if j-1 >= 0:
+              error[i, j-1] += extracolor*5/16
+            if i+1 < width and j-1 >= 0:
+              error[i+1, j-1] += extracolor*1/16
+        if printprogress:
+          print("finished processing image")
+        Image.fromarray(newbmp).save(outputpath)
+
+      # something's fishy...
+      else:
+        style_error()
+  except FileNotFoundError:
+    file_error(inputpath)
+
+
+# execute this chunk only if the file is run as a script
+if __name__ == "__main__":
+  main()
