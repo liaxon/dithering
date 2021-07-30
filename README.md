@@ -4,6 +4,7 @@ Dithering
 This is a short python program that will perform Floyd-Steinberg dithering.
 It runs very slowly on large pictures (larger than 500 by 500). It is designed 
 to be run from the command-line, but of course, you may modify it any way that you choose.
+The program runs with Python3.
 
 Dependencies
 -----
