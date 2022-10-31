@@ -2,12 +2,12 @@
 Uses dithering to process a file.
 """
 
-from PIL import Image
+import os
+import sys
+from typing import Any, Callable
 import numpy as np
 import numpy.typing as npt
-import sys
-import os
-from typing import Any
+from PIL import Image
 
 
 # error/usage messages
@@ -301,7 +301,8 @@ if __name__ == "__main__":
         on_usage_error()
 
     # Get the image manipulation strategy
-    image_action = None
+    image_action: Callable[[ColorLike, ColorScheme, bool], ColorLike]
+    image_action = None  # type: ignore
     if ditherstyle == "none":
         image_action = dither_do_nothing
     elif ditherstyle == "closest":
@@ -323,12 +324,12 @@ if __name__ == "__main__":
 
             if verbose:
                 print("starting image processing")
-            newbmp = image_action(bmp, colorscheme, verbose)  # type: ignore
+            newbmp = image_action(bmp, colorscheme, verbose)
             if verbose:
                 print("finished processing image")
 
-            result = Image.fromarray(newbmp.astype(np.uint8))
-            result.save(outputpath)
+            output = Image.fromarray(newbmp.astype(np.uint8))
+            output.save(outputpath)
             if verbose:
                 print(f"Image saved to {outputpath}")
     except FileNotFoundError:
