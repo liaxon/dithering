@@ -31,9 +31,8 @@ def on_usage_error() -> None:
         Sets the path to the output image, default ./out.png
     -v
         Verbose mode: prints progress
-    
-    This may take a while to run for images larger than 500 by 500."""
 
+    This may take a while to run for images larger than 500 by 500."""
     print(message)
     exit(1)
 
@@ -42,6 +41,7 @@ def on_style_error() -> None:
     """
     Handle error for incorrect DITHERSTYLE
     """
+
     message = """DITHERSTYLE must be one of:
     none, closest, floydsteinberg, notouch"""
     print(message)
@@ -162,7 +162,6 @@ defaultschemes: dict[str, ColorScheme] = {
 }
 
 
-# some handy functions
 def isin(item: Any, list: list[Any]) -> bool:
     """
     Returns whether an item is in a list (because the "in" keyword was giving me difficulty).

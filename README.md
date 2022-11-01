@@ -32,7 +32,7 @@ If you want to run tests on the package, it is super easy. First, make sure that
 with `pip install -e .`. Also install the secondary dependencies with `pip install -e requirements-dev.txt`. All of the configuration
 for mypy and unit tests is in the project configuration, in the `setup.sfg` and `myproject.toml` files.
 
-To do type checking, run `mypy --namespace-packages --no-explicit-exports`. This can run quite slowly.
+To do type checking, run `mypy .`. This can run quite slowly.
 
 To run unit tests, run `pytest`
 

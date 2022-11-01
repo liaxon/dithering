@@ -6,7 +6,7 @@ These tests run automatically with when pytest is run.
 import numpy as np
 import numpy.typing as npt
 import pytest
-from dither import ColorScheme, UniformColorScheme, dither_closest, dither_do_nothing, dither_floyd_steinberg, dither_no_touch, isin
+from dithering.dither import ColorScheme, UniformColorScheme, dither_closest, dither_do_nothing, dither_floyd_steinberg, dither_no_touch, isin
 
 
 def test_isin_simple():
